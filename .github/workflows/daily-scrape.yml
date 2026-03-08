@@ -1,0 +1,45 @@
+name: Daily Scorecard Scrape
+
+on:
+  workflow_dispatch: # Allow manual runs
+  schedule:
+    - cron: "0 10 * * *" # 4:00 AM MST is 10:00 AM UTC
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Run data collection script
+        env:
+          SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
+          QU_USERNAME: ${{ secrets.QU_USERNAME }}
+          QU_PASSWORD: ${{ secrets.QU_PASSWORD }}
+        run: python collect_data.py
+
+      - name: Commit and push if data changed
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "action@github.com"
+          git add data/scorecard_data.json
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "📊 Update daily scorecard data"
+            git push
+          fi
