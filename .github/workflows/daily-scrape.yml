@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 10 * * *" # 4:00 AM MST is 10:00 AM UTC
 
+permissions:
+  contents: write  # Required to push updated scorecard_data.json back to the repo
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -12,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
