@@ -30,11 +30,25 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Run data collection script
+        timeout-minutes: 15
         env:
           SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
           QU_USERNAME: ${{ secrets.QU_USERNAME }}
           QU_PASSWORD: ${{ secrets.QU_PASSWORD }}
-        run: python collect_data.py
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python collect_data.py 2>&1 | tee /tmp/scrape_debug.log
+          echo "Exit code: $?"
+          echo "=== SCORECARD DATA ==="
+          cat data/scorecard_data.json
+
+      - name: Upload debug log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-debug-log
+          path: /tmp/scrape_debug.log
+          retention-days: 3
 
       - name: Commit and push if data changed
         run: |
