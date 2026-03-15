@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-03-14T10:18:53.765411Z",
-  "report_date": "2026-03-13",
+  "last_updated": "2026-03-15T10:20:41.426892Z",
+  "report_date": "2026-03-14",
   "data_source": "live",
   "locations": {
     "overland_retail": {
@@ -50,12 +50,12 @@
     },
     "food_truck": {
       "name": "Overland \u2014 Food Truck",
-      "net_sales": 1134.8,
+      "net_sales": null,
       "target": 1474.0,
       "labor_pct": null,
-      "avg_check": 8.34,
+      "avg_check": null,
       "sos": null,
-      "trans_count": 136
+      "trans_count": null
     }
   }
 }
