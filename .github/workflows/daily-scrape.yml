@@ -1,0 +1,71 @@
+name: Daily Scorecard Scrape
+
+on:
+  workflow_dispatch: # Allow manual runs
+  schedule:
+    - cron: "0 10 * * *" # 4:00 AM MST is 10:00 AM UTC
+
+permissions:
+  contents: write  # Required to push updated scorecard_data.json back to the repo
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dateutil streamlit plotly pandas
+
+      - name: Run data collection script
+        timeout-minutes: 10
+        env:
+          # Square (Food Truck)
+          SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
+          # QU Beyond Data Export API — production credentials from Qu Support
+          QU_CLIENT_ID:      ${{ secrets.QU_CLIENT_ID }}
+          QU_CLIENT_SECRET:  ${{ secrets.QU_CLIENT_SECRET }}
+          QU_SERVICE_ID:     ${{ secrets.QU_SERVICE_ID }}
+          QU_COMPANY_ID:     ${{ secrets.QU_COMPANY_ID }}
+          # Optional: JSON map of location IDs e.g. {"overland":"123","state":"456","eubank":"789","rapido":"321"}
+          QU_LOCATION_IDS:   ${{ secrets.QU_LOCATION_IDS }}
+          # Optional: override API URLs (leave blank to use defaults)
+          QU_AUTH_URL:       ${{ secrets.QU_AUTH_URL }}
+          QU_API_URL:        ${{ secrets.QU_API_URL }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python collect_data.py 2>&1 | tee /tmp/scrape_debug.log
+          echo "Exit code: $?"
+          echo "=== SCORECARD DATA ==="
+          cat data/scorecard_data.json
+
+      - name: Upload debug log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-debug-log
+          path: /tmp/scrape_debug.log
+          retention-days: 7
+
+      - name: Commit and push if data changed
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "action@github.com"
+          git add data/scorecard_data.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "📊 Update daily scorecard data"
+            git push
+          fi
