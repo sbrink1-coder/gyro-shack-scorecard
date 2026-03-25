@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-25T16:03:55.840199Z",
+  "last_updated": "2026-03-25T16:55:22.629097Z",
   "report_date": "2026-03-24",
   "data_source": "live",
   "locations": {
@@ -10,7 +10,12 @@
       "labor_pct": 23.35,
       "avg_check": 22.76,
       "sos": null,
-      "trans_count": 143
+      "trans_count": 143,
+      "mtd_net_sales": 68994.35,
+      "mtd_target": 60360.0,
+      "mtd_labor_pct": 21.43,
+      "mtd_avg_check": 22.0,
+      "mtd_trans_count": 3136
     },
     "overland_catering": {
       "name": "Overland \u2014 Catering",
@@ -19,7 +24,12 @@
       "labor_pct": null,
       "avg_check": null,
       "sos": null,
-      "trans_count": null
+      "trans_count": null,
+      "mtd_net_sales": null,
+      "mtd_target": 11400.0,
+      "mtd_labor_pct": null,
+      "mtd_avg_check": null,
+      "mtd_trans_count": null
     },
     "state": {
       "name": "State Street",
@@ -28,7 +38,12 @@
       "labor_pct": 18.57,
       "avg_check": 16.0,
       "sos": null,
-      "trans_count": 93
+      "trans_count": 93,
+      "mtd_net_sales": 36156.93,
+      "mtd_target": 55152.0,
+      "mtd_labor_pct": 19.48,
+      "mtd_avg_check": 17.42,
+      "mtd_trans_count": 2076
     },
     "eubank": {
       "name": "Eubank",
@@ -37,7 +52,12 @@
       "labor_pct": 34.53,
       "avg_check": 20.07,
       "sos": null,
-      "trans_count": 104
+      "trans_count": 104,
+      "mtd_net_sales": 61324.8,
+      "mtd_target": 69864.0,
+      "mtd_labor_pct": 25.14,
+      "mtd_avg_check": 23.52,
+      "mtd_trans_count": 2607
     },
     "rapido": {
       "name": "Rapido (San Mateo)",
@@ -46,7 +66,12 @@
       "labor_pct": 27.33,
       "avg_check": 17.08,
       "sos": null,
-      "trans_count": 89
+      "trans_count": 89,
+      "mtd_net_sales": 41393.17,
+      "mtd_target": 55152.0,
+      "mtd_labor_pct": 22.28,
+      "mtd_avg_check": 18.08,
+      "mtd_trans_count": 2289
     },
     "food_truck": {
       "name": "Overland \u2014 Food Truck",
@@ -55,7 +80,12 @@
       "labor_pct": null,
       "avg_check": null,
       "sos": null,
-      "trans_count": null
+      "trans_count": null,
+      "mtd_net_sales": null,
+      "mtd_target": 35376.0,
+      "mtd_labor_pct": null,
+      "mtd_avg_check": null,
+      "mtd_trans_count": null
     }
   }
 }
