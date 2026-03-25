@@ -101,6 +101,15 @@ def _date_filter(report_date: date) -> dict:
     return {"from": d, "to": d}
 
 
+def _mtd_filter(report_date: date) -> dict:
+    """Return a month-to-date date filter (1st of month through report_date)."""
+    first = report_date.replace(day=1)
+    return {
+        "from": first.strftime("%m%d%Y"),
+        "to":   report_date.strftime("%m%d%Y"),
+    }
+
+
 def _fetch_sales(headers: dict, store_id: int, date_filter: dict) -> dict:
     """Fetch sales summary for a single store."""
     resp = requests.post(
@@ -131,12 +140,16 @@ def _fetch_labor(headers: dict, store_id: int, date_filter: dict) -> dict:
 
 def _empty_result() -> dict:
     return {
-        "net_sales":   None,
-        "labor_pct":   None,
-        "avg_check":   None,
-        "sos":         None,
-        "trans_count": None,
-        "labor_cost":  None,
+        "net_sales":       None,
+        "labor_pct":       None,
+        "avg_check":       None,
+        "sos":             None,
+        "trans_count":     None,
+        "labor_cost":      None,
+        "mtd_net_sales":   None,
+        "mtd_labor_pct":   None,
+        "mtd_avg_check":   None,
+        "mtd_trans_count": None,
     }
 
 
@@ -145,7 +158,9 @@ def fetch_all_locations(report_date: date = None) -> dict:
     Main entry point. Returns a dict with keys:
       overland_retail, overland_catering, state, eubank, rapido
 
-    Each value is a dict with: net_sales, labor_pct, avg_check, sos, trans_count, labor_cost
+    Each value is a dict with:
+      net_sales, labor_pct, avg_check, sos, trans_count, labor_cost  (daily)
+      mtd_net_sales, mtd_labor_pct, mtd_avg_check, mtd_trans_count   (month-to-date)
     """
     if report_date is None:
         report_date = date.today() - timedelta(days=1)
@@ -167,6 +182,7 @@ def fetch_all_locations(report_date: date = None) -> dict:
 
     hdrs = _make_headers(token, service_id)
     df   = _date_filter(report_date)
+    mdf  = _mtd_filter(report_date)
 
     # Get location IDs (from env override or defaults)
     loc_ids_json = os.environ.get("QU_LOCATION_IDS", "")
@@ -186,6 +202,7 @@ def fetch_all_locations(report_date: date = None) -> dict:
     for loc_key, store_id in location_ids.items():
         logger.info(f"Fetching data for {loc_key} (storeId={store_id}) on {report_date}...")
         try:
+            # ── Daily data ──
             sales = _fetch_sales(hdrs, store_id, df)
             labor = _fetch_labor(hdrs, store_id, df)
 
@@ -193,30 +210,48 @@ def fetch_all_locations(report_date: date = None) -> dict:
             check_count = sales.get("checkCount")
             labor_cost  = labor.get("totalLaborCost")
 
-            # Net avg check = net_sales / check_count
             avg_check = None
             if net_sales is not None and check_count and check_count > 0:
                 avg_check = round(float(net_sales) / int(check_count), 2)
 
-            # Labor % = labor_cost / net_sales * 100
             labor_pct = None
             if labor_cost is not None and net_sales and float(net_sales) > 0:
                 labor_pct = round(float(labor_cost) / float(net_sales) * 100, 2)
 
+            # ── MTD data ──
+            mtd_sales = _fetch_sales(hdrs, store_id, mdf)
+            mtd_labor = _fetch_labor(hdrs, store_id, mdf)
+
+            mtd_net_sales   = mtd_sales.get("netSales")
+            mtd_check_count = mtd_sales.get("checkCount")
+            mtd_labor_cost  = mtd_labor.get("totalLaborCost")
+
+            mtd_avg_check = None
+            if mtd_net_sales is not None and mtd_check_count and mtd_check_count > 0:
+                mtd_avg_check = round(float(mtd_net_sales) / int(mtd_check_count), 2)
+
+            mtd_labor_pct = None
+            if mtd_labor_cost is not None and mtd_net_sales and float(mtd_net_sales) > 0:
+                mtd_labor_pct = round(float(mtd_labor_cost) / float(mtd_net_sales) * 100, 2)
+
             result = {
-                "net_sales":   round(float(net_sales), 2) if net_sales is not None else None,
-                "labor_pct":   labor_pct,
-                "avg_check":   avg_check,
-                "sos":         None,  # SOS not available via API
-                "trans_count": int(check_count) if check_count is not None else None,
-                "labor_cost":  round(float(labor_cost), 2) if labor_cost is not None else None,
+                "net_sales":       round(float(net_sales), 2) if net_sales is not None else None,
+                "labor_pct":       labor_pct,
+                "avg_check":       avg_check,
+                "sos":             None,  # SOS not available via API
+                "trans_count":     int(check_count) if check_count is not None else None,
+                "labor_cost":      round(float(labor_cost), 2) if labor_cost is not None else None,
+                "mtd_net_sales":   round(float(mtd_net_sales), 2) if mtd_net_sales is not None else None,
+                "mtd_labor_pct":   mtd_labor_pct,
+                "mtd_avg_check":   mtd_avg_check,
+                "mtd_trans_count": int(mtd_check_count) if mtd_check_count is not None else None,
             }
 
             logger.info(
-                f"  {loc_key}: net_sales={result['net_sales']}, "
+                f"  {loc_key}: daily net_sales={result['net_sales']}, "
+                f"mtd_net_sales={result['mtd_net_sales']}, "
                 f"labor_pct={result['labor_pct']}%, "
-                f"avg_check=${result['avg_check']}, "
-                f"checks={result['trans_count']}"
+                f"avg_check=${result['avg_check']}"
             )
 
             # Map to the correct dashboard keys

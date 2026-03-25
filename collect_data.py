@@ -80,26 +80,41 @@ def collect_and_save(report_date: date = None) -> dict:
 
     for loc_key in ["overland_retail", "overland_catering", "state", "eubank", "rapido"]:
         loc_data = qu_data.get(loc_key, {})
-        target = get_daily_target(loc_key, report_date)
+        daily_target = get_daily_target(loc_key, report_date)
+        # MTD target = daily target * number of days elapsed so far this month
+        days_elapsed = report_date.day
+        mtd_target = round(daily_target * days_elapsed, 2)
         locations[loc_key] = {
             "name": LOCATION_NAMES[loc_key],
             "net_sales": loc_data.get("net_sales"),
-            "target": target,
+            "target": daily_target,
             "labor_pct": loc_data.get("labor_pct"),
             "avg_check": loc_data.get("avg_check"),
             "sos": loc_data.get("sos"),
             "trans_count": loc_data.get("trans_count"),
+            "mtd_net_sales": loc_data.get("mtd_net_sales"),
+            "mtd_target": mtd_target,
+            "mtd_labor_pct": loc_data.get("mtd_labor_pct"),
+            "mtd_avg_check": loc_data.get("mtd_avg_check"),
+            "mtd_trans_count": loc_data.get("mtd_trans_count"),
         }
 
     # Food Truck from Square
+    ft_daily_target = get_daily_target("food_truck", report_date)
+    ft_mtd_target = round(ft_daily_target * report_date.day, 2)
     locations["food_truck"] = {
         "name": LOCATION_NAMES["food_truck"],
         "net_sales": square_data.get("net_sales"),
-        "target": get_daily_target("food_truck", report_date),
+        "target": ft_daily_target,
         "labor_pct": square_data.get("labor_pct"),
         "avg_check": square_data.get("avg_check"),
         "sos": square_data.get("sos"),
         "trans_count": square_data.get("trans_count"),
+        "mtd_net_sales": square_data.get("mtd_net_sales"),
+        "mtd_target": ft_mtd_target,
+        "mtd_labor_pct": square_data.get("mtd_labor_pct"),
+        "mtd_avg_check": square_data.get("mtd_avg_check"),
+        "mtd_trans_count": square_data.get("mtd_trans_count"),
     }
 
     scorecard = {
