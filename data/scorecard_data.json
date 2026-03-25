@@ -1,16 +1,16 @@
 {
-  "last_updated": "2026-03-25T10:38:20.479299Z",
+  "last_updated": "2026-03-25T16:03:55.840199Z",
   "report_date": "2026-03-24",
   "data_source": "live",
   "locations": {
     "overland_retail": {
       "name": "Overland \u2014 Retail",
-      "net_sales": null,
+      "net_sales": 3255.25,
       "target": 2515.0,
-      "labor_pct": null,
-      "avg_check": null,
+      "labor_pct": 23.35,
+      "avg_check": 22.76,
       "sos": null,
-      "trans_count": null
+      "trans_count": 143
     },
     "overland_catering": {
       "name": "Overland \u2014 Catering",
@@ -23,30 +23,30 @@
     },
     "state": {
       "name": "State Street",
-      "net_sales": null,
+      "net_sales": 1488.24,
       "target": 2298.0,
-      "labor_pct": null,
-      "avg_check": null,
+      "labor_pct": 18.57,
+      "avg_check": 16.0,
       "sos": null,
-      "trans_count": null
+      "trans_count": 93
     },
     "eubank": {
       "name": "Eubank",
-      "net_sales": null,
+      "net_sales": 2087.05,
       "target": 2911.0,
-      "labor_pct": null,
-      "avg_check": null,
+      "labor_pct": 34.53,
+      "avg_check": 20.07,
       "sos": null,
-      "trans_count": null
+      "trans_count": 104
     },
     "rapido": {
       "name": "Rapido (San Mateo)",
-      "net_sales": null,
+      "net_sales": 1520.0,
       "target": 2298.0,
-      "labor_pct": null,
-      "avg_check": null,
+      "labor_pct": 27.33,
+      "avg_check": 17.08,
       "sos": null,
-      "trans_count": null
+      "trans_count": 89
     },
     "food_truck": {
       "name": "Overland \u2014 Food Truck",
