@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-25T16:55:22.629097Z",
+  "last_updated": "2026-03-25T18:18:05.874002Z",
   "report_date": "2026-03-24",
   "data_source": "live",
   "locations": {
@@ -81,11 +81,11 @@
       "avg_check": null,
       "sos": null,
       "trans_count": null,
-      "mtd_net_sales": null,
+      "mtd_net_sales": 4829.1,
       "mtd_target": 35376.0,
       "mtd_labor_pct": null,
-      "mtd_avg_check": null,
-      "mtd_trans_count": null
+      "mtd_avg_check": 10.0,
+      "mtd_trans_count": 483
     }
   }
 }
