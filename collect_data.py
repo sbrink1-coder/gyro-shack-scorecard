@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from fetchers.square_fetcher import get_food_truck_net_sales
 from fetchers.qu_fetcher import fetch_all_locations
+from fetchers.sheets_fetcher import fetch_monthly_targets, FALLBACK_TARGETS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,18 +25,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ── Monthly Daily Targets (from 2026 AFG Sales Goals sheet, row 9 per tab) ────
-# Format: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
-# Source tabs: OV-Store Only (row 9), OV-Catering (row 9), OV-Truck (row 9),
-#              Eubank (row 9), State (row 9), Rapido (row 9)
-MONTHLY_DAILY_TARGETS = {
-    "overland_retail":   [1550, 1587, 1969, 2118, 2179, 2140, 2184, 2107, 2258, 2280, 1990, 2265],
-    "overland_catering": [ 453,  671,  432,  881,  497,  454,  378,  606,  599,  600,  334,  143],
-    "food_truck":        [ 291,  536, 1265,  520,  888,  902,  946, 1003,  476,  333,  621,  719],
-    "eubank":            [1853, 1758, 2514, 2829, 2382, 2188, 2382, 2382, 2188, 2382, 2263, 2188],
-    "state":             [1279, 1289, 1496, 1732, 1770, 1744, 1823, 1587, 1583, 1525, 1335, 1421],
-    "rapido":            [1832, 1689, 1901, 1851, 1734, 1536, 1417, 1640, 1847, 1941, 1830, 1611],
-}
+# Monthly daily targets are loaded live from the AFG Sales Goals Google Sheet
+# at runtime via sheets_fetcher.fetch_monthly_targets().
+# FALLBACK_TARGETS (defined in sheets_fetcher) are used if the sheet is unreachable.
 
 LOCATION_NAMES = {
     "overland_retail": "Overland — Retail",
@@ -47,9 +39,9 @@ LOCATION_NAMES = {
 }
 
 
-def get_daily_target(location_key: str, report_date: date) -> float:
+def get_daily_target(location_key: str, report_date: date, monthly_targets: dict) -> float:
     """Get the daily target for a location based on the month."""
-    targets = MONTHLY_DAILY_TARGETS.get(location_key, [])
+    targets = monthly_targets.get(location_key, FALLBACK_TARGETS.get(location_key, []))
     if not targets:
         return 0.0
     month_idx = report_date.month - 1
@@ -67,6 +59,11 @@ def collect_and_save(report_date: date = None) -> dict:
 
     logger.info(f"Collecting data for {report_date}")
 
+    # ── Load daily targets from AFG Sales Goals Google Sheet ─────────────────
+    logger.info("Loading daily targets from AFG Sales Goals sheet...")
+    monthly_targets = fetch_monthly_targets()
+    logger.info("Daily targets loaded.")
+
     # ── Fetch QU POS data (Overland, State, Eubank, Rapido) ──
     logger.info("Fetching QU POS data...")
     qu_data = fetch_all_locations(report_date)
@@ -82,7 +79,7 @@ def collect_and_save(report_date: date = None) -> dict:
 
     for loc_key in ["overland_retail", "overland_catering", "state", "eubank", "rapido"]:
         loc_data = qu_data.get(loc_key, {})
-        daily_target = get_daily_target(loc_key, report_date)
+        daily_target = get_daily_target(loc_key, report_date, monthly_targets)
         # MTD target = daily target * number of days elapsed so far this month
         days_elapsed = report_date.day
         mtd_target = round(daily_target * days_elapsed, 2)
@@ -102,7 +99,7 @@ def collect_and_save(report_date: date = None) -> dict:
         }
 
     # Food Truck from Square
-    ft_daily_target = get_daily_target("food_truck", report_date)
+    ft_daily_target = get_daily_target("food_truck", report_date, monthly_targets)
     ft_mtd_target = round(ft_daily_target * report_date.day, 2)
     locations["food_truck"] = {
         "name": LOCATION_NAMES["food_truck"],
