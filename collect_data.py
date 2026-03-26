@@ -24,15 +24,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ── Monthly Daily Targets (from Google Sheet: 2026 AFG Sales Goals) ──────────
+# ── Monthly Daily Targets (from 2026 AFG Sales Goals sheet, row 9 per tab) ────
 # Format: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+# Source tabs: OV-Store Only (row 9), OV-Catering (row 9), OV-Truck (row 9),
+#              Eubank (row 9), State (row 9), Rapido (row 9)
 MONTHLY_DAILY_TARGETS = {
-    "overland_retail": [1980, 2027, 2515, 2706, 2783, 2733, 2789, 2692, 2884, 2912, 2542, 2893],
-    "overland_catering": [498, 738, 475, 969, 547, 499, 415, 667, 658, 660, 367, 157],
-    "food_truck": [339, 624, 1474, 606, 1035, 1051, 1102, 1168, 554, 388, 723, 838],
-    "state": [1694, 1607, 2298, 2198, 2177, 2000, 2177, 2177, 2000, 2177, 2069, 1750],
-    "eubank": [2145, 2036, 2911, 3276, 2758, 2533, 2758, 2758, 2533, 2758, 2621, 2533],
-    "rapido": [1694, 1607, 2298, 2198, 2177, 2000, 2177, 2177, 2000, 2177, 2069, 1750],
+    "overland_retail":   [1550, 1587, 1969, 2118, 2179, 2140, 2184, 2107, 2258, 2280, 1990, 2265],
+    "overland_catering": [ 453,  671,  432,  881,  497,  454,  378,  606,  599,  600,  334,  143],
+    "food_truck":        [ 291,  536, 1265,  520,  888,  902,  946, 1003,  476,  333,  621,  719],
+    "eubank":            [1853, 1758, 2514, 2829, 2382, 2188, 2382, 2382, 2188, 2382, 2263, 2188],
+    "state":             [1279, 1289, 1496, 1732, 1770, 1744, 1823, 1587, 1583, 1525, 1335, 1421],
+    "rapido":            [1832, 1689, 1901, 1851, 1734, 1536, 1417, 1640, 1847, 1941, 1830, 1611],
 }
 
 LOCATION_NAMES = {
