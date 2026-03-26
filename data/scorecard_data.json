@@ -1,18 +1,18 @@
 {
-  "last_updated": "2026-03-26T10:42:41.372461Z",
+  "last_updated": "2026-03-26T21:05:15.000129Z",
   "report_date": "2026-03-25",
   "data_source": "live",
   "locations": {
     "overland_retail": {
       "name": "Overland \u2014 Retail",
       "net_sales": 2801.67,
-      "target": 2515.0,
+      "target": 1969.0,
       "labor_pct": 27.89,
       "avg_check": 18.93,
       "sos": null,
       "trans_count": 148,
       "mtd_net_sales": 71796.02,
-      "mtd_target": 62875.0,
+      "mtd_target": 49225.0,
       "mtd_labor_pct": 21.69,
       "mtd_avg_check": 21.86,
       "mtd_trans_count": 3284
@@ -20,13 +20,13 @@
     "overland_catering": {
       "name": "Overland \u2014 Catering",
       "net_sales": null,
-      "target": 475.0,
+      "target": 432.0,
       "labor_pct": null,
       "avg_check": null,
       "sos": null,
       "trans_count": null,
       "mtd_net_sales": null,
-      "mtd_target": 11875.0,
+      "mtd_target": 10800.0,
       "mtd_labor_pct": null,
       "mtd_avg_check": null,
       "mtd_trans_count": null
@@ -34,13 +34,13 @@
     "state": {
       "name": "State Street",
       "net_sales": 1931.08,
-      "target": 2298.0,
+      "target": 1496.0,
       "labor_pct": 18.18,
       "avg_check": 18.22,
       "sos": null,
       "trans_count": 106,
       "mtd_net_sales": 38088.01,
-      "mtd_target": 57450.0,
+      "mtd_target": 37400.0,
       "mtd_labor_pct": 19.42,
       "mtd_avg_check": 17.46,
       "mtd_trans_count": 2182
@@ -48,13 +48,13 @@
     "eubank": {
       "name": "Eubank",
       "net_sales": 3508.41,
-      "target": 2911.0,
+      "target": 2514.0,
       "labor_pct": 22.14,
       "avg_check": 29.0,
       "sos": null,
       "trans_count": 121,
       "mtd_net_sales": 64833.21,
-      "mtd_target": 72775.0,
+      "mtd_target": 62850.0,
       "mtd_labor_pct": 24.98,
       "mtd_avg_check": 23.77,
       "mtd_trans_count": 2728
@@ -62,13 +62,13 @@
     "rapido": {
       "name": "Rapido (San Mateo)",
       "net_sales": 1318.5,
-      "target": 2298.0,
+      "target": 1901.0,
       "labor_pct": 29.6,
       "avg_check": 14.65,
       "sos": null,
       "trans_count": 90,
       "mtd_net_sales": 42711.67,
-      "mtd_target": 57450.0,
+      "mtd_target": 47525.0,
       "mtd_labor_pct": 22.51,
       "mtd_avg_check": 17.95,
       "mtd_trans_count": 2379
@@ -76,13 +76,13 @@
     "food_truck": {
       "name": "Overland \u2014 Food Truck",
       "net_sales": null,
-      "target": 1474.0,
+      "target": 1265.0,
       "labor_pct": null,
       "avg_check": null,
       "sos": null,
       "trans_count": null,
       "mtd_net_sales": 4829.1,
-      "mtd_target": 36850.0,
+      "mtd_target": 31625.0,
       "mtd_labor_pct": null,
       "mtd_avg_check": 10.0,
       "mtd_trans_count": 483
