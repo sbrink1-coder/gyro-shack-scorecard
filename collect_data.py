@@ -35,7 +35,7 @@ LOCATION_NAMES = {
     "food_truck": "Overland — Food Truck",
     "state": "State Street",
     "eubank": "Eubank",
-    "rapido": "Rapido (San Mateo)",
+    "rapido": "Rapido",
 }
 
 

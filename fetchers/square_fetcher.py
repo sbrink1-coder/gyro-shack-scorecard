@@ -1,7 +1,8 @@
 """
-Square API Fetcher — Food Truck Net Sales
+Square API Fetcher — Food Truck Gross Sales
 Account: seth.brink@gyroshack.com
-Uses Square Orders API to calculate Net Sales (post-discounts/refunds)
+Uses Square Orders API to calculate Gross Sales (sum of line item gross_sales_money,
+before discounts, before tax, before tips).
 Returns both daily and MTD (month-to-date) figures.
 """
 
@@ -95,35 +96,46 @@ def _fetch_orders_for_range(headers: dict, location_id: str,
     return all_orders
 
 
-def _calc_net_sales(orders: list) -> tuple:
+def _calc_gross_sales(orders: list) -> tuple:
     """
-    Calculate net_sales and trans_count from a list of Square orders.
-    Net Sales = total - tax - tip (discounts already reduce total_money in Square).
-    Returns (net_sales, trans_count).
+    Calculate gross_sales and trans_count from a list of Square orders.
+    Gross Sales = sum of each line item's gross_sales_money (before discounts,
+    before tax, before tips) — matches the Gross Sales figure in the Square
+    Dashboard Sales Summary report.
+    Returns (gross_sales, trans_count).
     """
-    net_sales = 0.0
+    gross_sales = 0.0
     trans_count = 0
 
     for order in orders:
-        total = order.get("total_money", {}).get("amount", 0) or 0
-        tax   = order.get("total_tax_money", {}).get("amount", 0) or 0
-        tip   = order.get("total_tip_money", {}).get("amount", 0) or 0
+        order_gross = 0.0
+        line_items = order.get("line_items", [])
+        for item in line_items:
+            gm = item.get("gross_sales_money", {}).get("amount", 0) or 0
+            order_gross += gm / 100.0
 
-        order_net = (total - tax - tip) / 100.0
-        if order_net > 0:
-            net_sales += order_net
+        # Fallback: if line items are absent (older orders), use total - tax - tip
+        if order_gross == 0.0 and not line_items:
+            total = order.get("total_money", {}).get("amount", 0) or 0
+            tax   = order.get("total_tax_money", {}).get("amount", 0) or 0
+            tip   = order.get("total_tip_money", {}).get("amount", 0) or 0
+            order_gross = (total - tax - tip) / 100.0
+
+        if order_gross > 0:
+            gross_sales += order_gross
             trans_count += 1
 
-    return round(net_sales, 2), trans_count
+    return round(gross_sales, 2), trans_count
 
 
 def get_food_truck_net_sales(report_date: date = None) -> dict:
     """
-    Fetch Net Sales for the Food Truck from Square API.
+    Fetch Gross Sales for the Food Truck from Square API.
     Returns dict with:
       net_sales, avg_check, trans_count          — for report_date (daily)
       mtd_net_sales, mtd_avg_check, mtd_trans_count — month-to-date
       labor_pct and sos are always None (Square doesn't track these).
+    Note: 'net_sales' key is kept for compatibility but now contains Gross Sales.
     """
     try:
         import requests
@@ -170,10 +182,10 @@ def get_food_truck_net_sales(report_date: date = None) -> dict:
     daily_orders = _fetch_orders_for_range(headers, location_id, report_date, report_date)
     logger.info(f"Daily orders fetched: {len(daily_orders)}")
 
-    daily_net_sales, daily_trans_count = _calc_net_sales(daily_orders)
-    daily_avg_check = round(daily_net_sales / daily_trans_count, 2) if daily_trans_count > 0 else None
+    daily_gross_sales, daily_trans_count = _calc_gross_sales(daily_orders)
+    daily_avg_check = round(daily_gross_sales / daily_trans_count, 2) if daily_trans_count > 0 else None
 
-    logger.info(f"Square Food Truck DAILY: net_sales=${daily_net_sales:.2f}, "
+    logger.info(f"Square Food Truck DAILY: gross_sales=${daily_gross_sales:.2f}, "
                 f"trans_count={daily_trans_count}, avg_check={daily_avg_check}")
 
     # ── MTD: fetch orders from 1st of month through report_date ─────────────
@@ -182,21 +194,21 @@ def get_food_truck_net_sales(report_date: date = None) -> dict:
     mtd_orders = _fetch_orders_for_range(headers, location_id, mtd_start, report_date)
     logger.info(f"MTD orders fetched: {len(mtd_orders)}")
 
-    mtd_net_sales, mtd_trans_count = _calc_net_sales(mtd_orders)
-    mtd_avg_check = round(mtd_net_sales / mtd_trans_count, 2) if mtd_trans_count > 0 else None
+    mtd_gross_sales, mtd_trans_count = _calc_gross_sales(mtd_orders)
+    mtd_avg_check = round(mtd_gross_sales / mtd_trans_count, 2) if mtd_trans_count > 0 else None
 
-    logger.info(f"Square Food Truck MTD: net_sales=${mtd_net_sales:.2f}, "
+    logger.info(f"Square Food Truck MTD: gross_sales=${mtd_gross_sales:.2f}, "
                 f"trans_count={mtd_trans_count}, avg_check={mtd_avg_check}")
 
     return {
-        # Daily
-        "net_sales":     round(daily_net_sales, 2) if daily_net_sales > 0 else None,
+        # Daily (key kept as 'net_sales' for downstream compatibility)
+        "net_sales":     round(daily_gross_sales, 2) if daily_gross_sales > 0 else None,
         "labor_pct":     None,   # Square doesn't have labor data
         "avg_check":     daily_avg_check,
         "sos":           None,   # Square doesn't track SOS
         "trans_count":   daily_trans_count if daily_trans_count > 0 else None,
         # MTD
-        "mtd_net_sales":   round(mtd_net_sales, 2) if mtd_net_sales > 0 else None,
+        "mtd_net_sales":   round(mtd_gross_sales, 2) if mtd_gross_sales > 0 else None,
         "mtd_labor_pct":   None,
         "mtd_avg_check":   mtd_avg_check,
         "mtd_trans_count": mtd_trans_count if mtd_trans_count > 0 else None,
