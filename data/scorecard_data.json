@@ -1,35 +1,35 @@
 {
-  "last_updated": "2026-03-27T19:43:43.334067Z",
+  "last_updated": "2026-03-27T19:45:58.095850Z",
   "report_date": "2026-03-26",
   "data_source": "live",
   "locations": {
     "overland_retail": {
       "name": "Overland \u2014 Retail",
-      "net_sales": 0.0,
+      "net_sales": 2604.08,
       "target": 1969.0,
-      "labor_pct": null,
-      "avg_check": null,
+      "labor_pct": 32.16,
+      "avg_check": 18.21,
       "sos": null,
-      "trans_count": 0,
-      "mtd_net_sales": 0.0,
+      "trans_count": 143,
+      "mtd_net_sales": 63618.87,
       "mtd_target": 51194.0,
-      "mtd_labor_pct": null,
-      "mtd_avg_check": null,
-      "mtd_trans_count": 0
+      "mtd_labor_pct": 25.79,
+      "mtd_avg_check": 18.72,
+      "mtd_trans_count": 3398
     },
     "overland_catering": {
       "name": "Overland \u2014 Catering",
-      "net_sales": 0.0,
+      "net_sales": 211.97,
       "target": 432.0,
       "labor_pct": null,
-      "avg_check": null,
+      "avg_check": 211.97,
       "sos": null,
-      "trans_count": 0,
-      "mtd_net_sales": 0.0,
+      "trans_count": 1,
+      "mtd_net_sales": 14154.85,
       "mtd_target": 11232.0,
       "mtd_labor_pct": null,
-      "mtd_avg_check": null,
-      "mtd_trans_count": 0
+      "mtd_avg_check": 471.83,
+      "mtd_trans_count": 30
     },
     "state": {
       "name": "State Street",
