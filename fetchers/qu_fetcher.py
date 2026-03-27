@@ -199,7 +199,8 @@ def _fetch_checks_for_date_range(
         try:
             resp = requests.get(url, headers=headers, params=params, timeout=30)
             if resp.status_code == 200:
-                checks = resp.json().get("data", {}).get("checks", [])
+                # API returns 'check' (singular) as the key, not 'checks'
+                checks = resp.json().get("data", {}).get("check", [])
                 all_checks.extend(checks)
                 logger.debug(f"  {current}: {len(checks)} checks fetched")
             else:
@@ -225,13 +226,15 @@ def _sum_checks_by_order_type(
     catering = {"net_sales": 0.0, "trans_count": 0}
 
     for check in checks:
-        ns = check.get("netSales") or check.get("net_sales") or 0
+        # QU checks export uses 'total' for the check total (not 'netSales')
+        ns = check.get("total") or check.get("netSales") or check.get("net_sales") or 0
         try:
             ns = float(ns)
         except (TypeError, ValueError):
             ns = 0.0
 
-        ot_id = check.get("orderTypeId") or check.get("order_type_id")
+        # QU checks export uses 'order_type_id' (snake_case)
+        ot_id = check.get("order_type_id") or check.get("orderTypeId")
         try:
             ot_id = int(ot_id) if ot_id is not None else None
         except (TypeError, ValueError):
