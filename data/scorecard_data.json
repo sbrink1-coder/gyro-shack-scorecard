@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-27T15:40:45.099939Z",
+  "last_updated": "2026-03-27T15:56:55.757774Z",
   "report_date": "2026-03-26",
   "data_source": "live",
   "locations": {
@@ -60,7 +60,7 @@
       "mtd_trans_count": 2843
     },
     "rapido": {
-      "name": "Rapido (San Mateo)",
+      "name": "Rapido",
       "net_sales": 1915.18,
       "target": 1901.0,
       "labor_pct": 21.37,
@@ -81,10 +81,10 @@
       "avg_check": 15.2,
       "sos": null,
       "trans_count": 359,
-      "mtd_net_sales": 10287.1,
+      "mtd_net_sales": 15404.5,
       "mtd_target": 32890.0,
       "mtd_labor_pct": null,
-      "mtd_avg_check": 12.22,
+      "mtd_avg_check": 18.3,
       "mtd_trans_count": 842
     }
   }
