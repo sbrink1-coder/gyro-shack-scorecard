@@ -16,6 +16,14 @@ Confirmed production API details (tested 2026-03-25):
   Locs:  GET  https://gateway-api.qubeyond.com/api/v4/data/export/locations
          Returns location list with id, name, dba_name fields
 
+  Order Type Config (per QU support, case 00153802):
+    GET /api/v4/data/export/{customerid}/{locationid}?data_type=config&sub_data_type=order_type
+    Returns: { "data": { "order_type": [ { "id": <int>, "name": "..." }, ... ] } }
+
+  Checks Export (for order-type-level split):
+    GET /api/v4/data/export/{customerid}/{locationid}?data_type=checks&date=MMddyyyy
+    Returns: { "data": { "checks": [ { "orderTypeId": <int>, "netSales": <float>, ... } ] } }
+
 Confirmed location IDs for Gyro Shack (Company 379):
   810  → 3001 Boise, ID - Overland Rd.   (Retail + Catering combined)
   811  → 3002 - Boise, ID - State Street
@@ -40,11 +48,12 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ── API Configuration ─────────────────────────────────────────────────────────
-API_BASE  = "https://gateway-api.qubeyond.com"
-AUTH_URL  = f"{API_BASE}/api/v4/authentication/oauth2/access-token"
-SALES_URL = f"{API_BASE}/api/v4/data/sales/summary"
-LABOR_URL = f"{API_BASE}/api/v4/data/labor/summary"
-LOCS_URL  = f"{API_BASE}/api/v4/data/export/locations"
+API_BASE   = "https://gateway-api.qubeyond.com"
+AUTH_URL   = f"{API_BASE}/api/v4/authentication/oauth2/access-token"
+SALES_URL  = f"{API_BASE}/api/v4/data/sales/summary"
+LABOR_URL  = f"{API_BASE}/api/v4/data/labor/summary"
+LOCS_URL   = f"{API_BASE}/api/v4/data/export/locations"
+EXPORT_URL = f"{API_BASE}/api/v4/data/export"   # /{customerid}/{locationid}?...
 
 # Confirmed production location IDs for Gyro Shack
 DEFAULT_LOCATION_IDS = {
@@ -53,6 +62,9 @@ DEFAULT_LOCATION_IDS = {
     "eubank":   5645,  # Albuquerque - Eubank Blvd.
     "rapido":   814,   # Meridian - Fairview (Rapido)
 }
+
+# Keyword used to identify the Catering order type by name
+CATERING_KEYWORDS = ["catering", "cater"]
 
 
 def _get_credentials():
@@ -67,7 +79,7 @@ def _get_credentials():
 
 def _get_token(client_id: str, client_secret: str) -> str:
     """Obtain OAuth2 bearer token from QU Beyond."""
-    logger.info(f"Requesting QU Beyond token...")
+    logger.info("Requesting QU Beyond token...")
     resp = requests.post(
         AUTH_URL,
         data={
@@ -138,6 +150,138 @@ def _fetch_labor(headers: dict, store_id: int, date_filter: dict) -> dict:
     return resp.json()
 
 
+def _get_catering_order_type_id(headers: dict, company_id: str, location_id: int) -> int | None:
+    """
+    Call the QU order type config endpoint to find the ID for 'Catering'.
+    Returns the integer ID, or None if not found.
+    """
+    url = f"{EXPORT_URL}/{company_id}/{location_id}"
+    params = {"data_type": "config", "sub_data_type": "order_type"}
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"Order type config error {resp.status_code}: {resp.text[:300]}")
+            return None
+        data = resp.json()
+        order_types = data.get("data", {}).get("order_type", [])
+        logger.info(f"Order types for location {location_id}: {order_types}")
+        for ot in order_types:
+            name = ot.get("name", "").lower()
+            for kw in CATERING_KEYWORDS:
+                if kw in name:
+                    logger.info(f"Found Catering order type: id={ot['id']}, name='{ot['name']}'")
+                    return int(ot["id"])
+        logger.warning(f"No catering order type found among: {[o.get('name') for o in order_types]}")
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching order type config: {e}")
+        return None
+
+
+def _fetch_checks_for_date_range(
+    headers: dict, company_id: str, location_id: int,
+    start_date: date, end_date: date
+) -> list:
+    """
+    Fetch all check records for a location over a date range using the
+    QU Data Export checks endpoint.
+
+    The endpoint accepts a single date per call, so we iterate day by day
+    and aggregate results.
+    Returns a flat list of check dicts.
+    """
+    all_checks = []
+    current = start_date
+    while current <= end_date:
+        date_str = current.strftime("%m%d%Y")
+        url = f"{EXPORT_URL}/{company_id}/{location_id}"
+        params = {"data_type": "checks", "date": date_str}
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            if resp.status_code == 200:
+                checks = resp.json().get("data", {}).get("checks", [])
+                all_checks.extend(checks)
+                logger.debug(f"  {current}: {len(checks)} checks fetched")
+            else:
+                logger.warning(
+                    f"Checks export error for {current} (loc {location_id}): "
+                    f"{resp.status_code} — {resp.text[:200]}"
+                )
+        except Exception as e:
+            logger.error(f"Error fetching checks for {current}: {e}")
+        current += timedelta(days=1)
+    return all_checks
+
+
+def _sum_checks_by_order_type(
+    checks: list, catering_id: int | None
+) -> tuple[dict, dict]:
+    """
+    Split a list of checks into retail and catering buckets.
+    Returns (retail_totals, catering_totals) where each is:
+      { "net_sales": float, "trans_count": int }
+    """
+    retail   = {"net_sales": 0.0, "trans_count": 0}
+    catering = {"net_sales": 0.0, "trans_count": 0}
+
+    for check in checks:
+        ns = check.get("netSales") or check.get("net_sales") or 0
+        try:
+            ns = float(ns)
+        except (TypeError, ValueError):
+            ns = 0.0
+
+        ot_id = check.get("orderTypeId") or check.get("order_type_id")
+        try:
+            ot_id = int(ot_id) if ot_id is not None else None
+        except (TypeError, ValueError):
+            ot_id = None
+
+        if catering_id is not None and ot_id == catering_id:
+            catering["net_sales"]   += ns
+            catering["trans_count"] += 1
+        else:
+            retail["net_sales"]   += ns
+            retail["trans_count"] += 1
+
+    retail["net_sales"]   = round(retail["net_sales"], 2)
+    catering["net_sales"] = round(catering["net_sales"], 2)
+    return retail, catering
+
+
+def _build_result(net_sales, check_count, labor_cost,
+                  mtd_net_sales, mtd_check_count, mtd_labor_cost) -> dict:
+    """Assemble a standard location result dict."""
+    avg_check = None
+    if net_sales is not None and check_count and check_count > 0:
+        avg_check = round(float(net_sales) / int(check_count), 2)
+
+    labor_pct = None
+    if labor_cost is not None and net_sales and float(net_sales) > 0:
+        labor_pct = round(float(labor_cost) / float(net_sales) * 100, 2)
+
+    mtd_avg_check = None
+    if mtd_net_sales is not None and mtd_check_count and mtd_check_count > 0:
+        mtd_avg_check = round(float(mtd_net_sales) / int(mtd_check_count), 2)
+
+    mtd_labor_pct = None
+    if mtd_labor_cost is not None and mtd_net_sales and float(mtd_net_sales) > 0:
+        mtd_labor_pct = round(float(mtd_labor_cost) / float(mtd_net_sales) * 100, 2)
+
+    return {
+        "net_sales":       round(float(net_sales), 2) if net_sales is not None else None,
+        "labor_pct":       labor_pct,
+        "avg_check":       avg_check,
+        "sos":             None,
+        "trans_count":     int(check_count) if check_count is not None else None,
+        "labor_cost":      round(float(labor_cost), 2) if labor_cost is not None else None,
+        "mtd_net_sales":   round(float(mtd_net_sales), 2) if mtd_net_sales is not None else None,
+        "mtd_labor_pct":   mtd_labor_pct,
+        "mtd_avg_check":   mtd_avg_check,
+        "mtd_trans_count": int(mtd_check_count) if mtd_check_count is not None else None,
+    }
+
+
 def _empty_result() -> dict:
     return {
         "net_sales":       None,
@@ -157,6 +301,9 @@ def fetch_all_locations(report_date: date = None) -> dict:
     """
     Main entry point. Returns a dict with keys:
       overland_retail, overland_catering, state, eubank, rapido
+
+    For Overland, uses the checks export + order type config to split
+    Retail vs Catering. All other locations use the Sales Summary API.
 
     Each value is a dict with:
       net_sales, labor_pct, avg_check, sos, trans_count, labor_cost  (daily)
@@ -202,65 +349,86 @@ def fetch_all_locations(report_date: date = None) -> dict:
     for loc_key, store_id in location_ids.items():
         logger.info(f"Fetching data for {loc_key} (storeId={store_id}) on {report_date}...")
         try:
-            # ── Daily data ──
-            sales = _fetch_sales(hdrs, store_id, df)
-            labor = _fetch_labor(hdrs, store_id, df)
-
-            net_sales   = sales.get("netSales")
-            check_count = sales.get("checkCount")
-            labor_cost  = labor.get("totalLaborCost")
-
-            avg_check = None
-            if net_sales is not None and check_count and check_count > 0:
-                avg_check = round(float(net_sales) / int(check_count), 2)
-
-            labor_pct = None
-            if labor_cost is not None and net_sales and float(net_sales) > 0:
-                labor_pct = round(float(labor_cost) / float(net_sales) * 100, 2)
-
-            # ── MTD data ──
-            mtd_sales = _fetch_sales(hdrs, store_id, mdf)
-            mtd_labor = _fetch_labor(hdrs, store_id, mdf)
-
-            mtd_net_sales   = mtd_sales.get("netSales")
-            mtd_check_count = mtd_sales.get("checkCount")
-            mtd_labor_cost  = mtd_labor.get("totalLaborCost")
-
-            mtd_avg_check = None
-            if mtd_net_sales is not None and mtd_check_count and mtd_check_count > 0:
-                mtd_avg_check = round(float(mtd_net_sales) / int(mtd_check_count), 2)
-
-            mtd_labor_pct = None
-            if mtd_labor_cost is not None and mtd_net_sales and float(mtd_net_sales) > 0:
-                mtd_labor_pct = round(float(mtd_labor_cost) / float(mtd_net_sales) * 100, 2)
-
-            result = {
-                "net_sales":       round(float(net_sales), 2) if net_sales is not None else None,
-                "labor_pct":       labor_pct,
-                "avg_check":       avg_check,
-                "sos":             None,  # SOS not available via API
-                "trans_count":     int(check_count) if check_count is not None else None,
-                "labor_cost":      round(float(labor_cost), 2) if labor_cost is not None else None,
-                "mtd_net_sales":   round(float(mtd_net_sales), 2) if mtd_net_sales is not None else None,
-                "mtd_labor_pct":   mtd_labor_pct,
-                "mtd_avg_check":   mtd_avg_check,
-                "mtd_trans_count": int(mtd_check_count) if mtd_check_count is not None else None,
-            }
-
-            logger.info(
-                f"  {loc_key}: daily net_sales={result['net_sales']}, "
-                f"mtd_net_sales={result['mtd_net_sales']}, "
-                f"labor_pct={result['labor_pct']}%, "
-                f"avg_check=${result['avg_check']}"
-            )
-
-            # Map to the correct dashboard keys
             if loc_key == "overland":
-                results["overland_retail"] = result
-                # Catering is combined in the same store — not separately available
-                results["overland_catering"] = _empty_result()
-            elif loc_key in results:
-                results[loc_key] = result
+                # ── Overland: split Retail vs Catering via checks export ──────
+                catering_type_id = _get_catering_order_type_id(
+                    hdrs, company_id, store_id
+                )
+                logger.info(f"Overland catering orderTypeId: {catering_type_id}")
+
+                # Daily checks
+                daily_checks = _fetch_checks_for_date_range(
+                    hdrs, company_id, store_id, report_date, report_date
+                )
+                logger.info(f"Overland daily checks fetched: {len(daily_checks)}")
+                daily_retail, daily_catering = _sum_checks_by_order_type(
+                    daily_checks, catering_type_id
+                )
+
+                # MTD checks
+                mtd_start = report_date.replace(day=1)
+                mtd_checks = _fetch_checks_for_date_range(
+                    hdrs, company_id, store_id, mtd_start, report_date
+                )
+                logger.info(f"Overland MTD checks fetched: {len(mtd_checks)}")
+                mtd_retail, mtd_catering = _sum_checks_by_order_type(
+                    mtd_checks, catering_type_id
+                )
+
+                # Labor comes from the summary API (applies to the whole store)
+                labor      = _fetch_labor(hdrs, store_id, df)
+                mtd_labor  = _fetch_labor(hdrs, store_id, mdf)
+                labor_cost     = labor.get("totalLaborCost")
+                mtd_labor_cost = mtd_labor.get("totalLaborCost")
+
+                results["overland_retail"] = _build_result(
+                    daily_retail["net_sales"],   daily_retail["trans_count"],   labor_cost,
+                    mtd_retail["net_sales"],     mtd_retail["trans_count"],     mtd_labor_cost,
+                )
+                results["overland_catering"] = _build_result(
+                    daily_catering["net_sales"], daily_catering["trans_count"], None,
+                    mtd_catering["net_sales"],   mtd_catering["trans_count"],   None,
+                )
+
+                logger.info(
+                    f"  overland_retail:   daily=${daily_retail['net_sales']:.2f}  "
+                    f"mtd=${mtd_retail['net_sales']:.2f}"
+                )
+                logger.info(
+                    f"  overland_catering: daily=${daily_catering['net_sales']:.2f}  "
+                    f"mtd=${mtd_catering['net_sales']:.2f}"
+                )
+
+            else:
+                # ── All other locations: use Sales Summary API ────────────────
+                sales = _fetch_sales(hdrs, store_id, df)
+                labor = _fetch_labor(hdrs, store_id, df)
+
+                net_sales   = sales.get("netSales")
+                check_count = sales.get("checkCount")
+                labor_cost  = labor.get("totalLaborCost")
+
+                mtd_sales = _fetch_sales(hdrs, store_id, mdf)
+                mtd_labor = _fetch_labor(hdrs, store_id, mdf)
+
+                mtd_net_sales   = mtd_sales.get("netSales")
+                mtd_check_count = mtd_sales.get("checkCount")
+                mtd_labor_cost  = mtd_labor.get("totalLaborCost")
+
+                result = _build_result(
+                    net_sales, check_count, labor_cost,
+                    mtd_net_sales, mtd_check_count, mtd_labor_cost,
+                )
+
+                logger.info(
+                    f"  {loc_key}: daily net_sales={result['net_sales']}, "
+                    f"mtd_net_sales={result['mtd_net_sales']}, "
+                    f"labor_pct={result['labor_pct']}%, "
+                    f"avg_check=${result['avg_check']}"
+                )
+
+                if loc_key in results:
+                    results[loc_key] = result
 
         except Exception as e:
             logger.error(f"Error fetching {loc_key} (storeId={store_id}): {e}", exc_info=True)
