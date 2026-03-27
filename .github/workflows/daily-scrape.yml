@@ -28,6 +28,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests python-dateutil streamlit plotly pandas cryptography
 
+      - name: Diagnose QU checks export endpoint
+        timeout-minutes: 3
+        env:
+          QU_CLIENT_ID:      ${{ secrets.QU_CLIENT_ID }}
+          QU_CLIENT_SECRET:  ${{ secrets.QU_CLIENT_SECRET }}
+          QU_SERVICE_ID:     ${{ secrets.QU_SERVICE_ID }}
+          QU_COMPANY_ID:     ${{ secrets.QU_COMPANY_ID }}
+          QU_LOCATION_IDS:   ${{ secrets.QU_LOCATION_IDS }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python debug_checks_api.py 2>&1 | tee /tmp/checks_diag.log || true
+
+      - name: Upload checks diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checks-diag-log
+          path: /tmp/checks_diag.log
+          retention-days: 3
+
       - name: Run data collection script
         timeout-minutes: 10
         env:
