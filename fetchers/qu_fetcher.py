@@ -195,7 +195,7 @@ def _fetch_checks_for_date_range(
     while current <= end_date:
         date_str = current.strftime("%m%d%Y")
         url = f"{EXPORT_URL}/{company_id}/{location_id}"
-        params = {"data_type": "checks", "date": date_str}
+        params = {"data_type": "checks", "start_date": date_str, "end_date": date_str}
         try:
             resp = requests.get(url, headers=headers, params=params, timeout=30)
             if resp.status_code == 200:
