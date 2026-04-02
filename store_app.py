@@ -1,5 +1,5 @@
-""" 
-Gyro Shack Leadership Scorecard Dashboard
+"""
+Gyro Shack Store Scoreboard
 Compares Net Sales actuals vs. targets from Google Sheets
 Data Sources: Square API (Food Truck) + QU POS (all other locations)
 """
@@ -11,7 +11,7 @@ from datetime import datetime, date, timedelta
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Leadership Scorecard",
+    page_title="Store Scoreboard",
     page_icon="🥙",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -337,7 +337,7 @@ def main():
     # ── Header ──
     st.markdown(f"""
     <div class="dashboard-header">
-      <h1>🥙 LEADERSHIP SCORECARD</h1>
+      <h1>🥙 STORE SCOREBOARD</h1>
       <div class="subtitle">
         {rd_str} &nbsp;|&nbsp; {source_badge} &nbsp;|&nbsp; Updated: {lu_str}
       </div>
