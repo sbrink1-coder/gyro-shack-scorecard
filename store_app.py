@@ -367,11 +367,7 @@ def main():
 
     with r1c2:
         loc = locations.get("overland_catering", {})
-        render_location_card(
-            loc.get("name", "Overland — Catering"),
-            loc,
-            show_catering_pending=True
-        )
+        render_location_card(loc.get("name", "Overland — Catering"), loc)
 
     with r1c3:
         loc = locations.get("food_truck", {})
