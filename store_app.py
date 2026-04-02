@@ -1,6 +1,6 @@
 """
 Gyro Shack Store Scoreboard
-Compares Net Sales actuals vs. targets from Google Sheets
+Shows performance vs. targets without revealing dollar figures.
 Data Sources: Square API (Food Truck) + QU POS (all other locations)
 """
 
@@ -49,26 +49,40 @@ st.markdown("""
     text-transform: uppercase; letter-spacing: 1px;
   }
 
-  /* Sales comparison box — two halves side by side */
+  /* Status comparison box — two halves side by side */
   .sales-compare {
     display: flex; gap: 8px; margin-bottom: 10px;
   }
   .sales-half {
-    flex: 1; border-radius: 8px; padding: 12px 8px;
+    flex: 1; border-radius: 8px; padding: 14px 8px;
     text-align: center; border: 2px solid;
   }
   .sales-half-label {
     font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1px; opacity: 0.75; margin-bottom: 4px;
-  }
-  .sales-half-actual {
-    font-size: 1.55rem; font-weight: 900; line-height: 1.1;
-  }
-  .sales-half-target {
-    font-size: 0.7rem; opacity: 0.65; margin-top: 2px;
+    letter-spacing: 1px; opacity: 0.75; margin-bottom: 6px;
   }
   .sales-half-pct {
-    font-size: 1rem; font-weight: 700; margin-top: 3px;
+    font-size: 2rem; font-weight: 900; line-height: 1.1;
+  }
+  .sales-half-sub {
+    font-size: 0.7rem; opacity: 0.65; margin-top: 4px;
+  }
+
+  /* Checks delta box */
+  .checks-delta {
+    border-radius: 8px; padding: 12px 8px;
+    text-align: center; border: 2px solid;
+    margin-bottom: 10px;
+  }
+  .checks-delta-label {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; opacity: 0.75; margin-bottom: 4px;
+  }
+  .checks-delta-value {
+    font-size: 2rem; font-weight: 900; line-height: 1.1;
+  }
+  .checks-delta-sub {
+    font-size: 0.7rem; opacity: 0.65; margin-top: 4px;
   }
 
   /* KPI metric row */
@@ -94,21 +108,6 @@ st.markdown("""
   .gray   { background: rgba(110,118,129,0.15); color: #8b949e; border-color: #30363d !important; }
   .blue   { background: rgba(56,139,253,0.15);  color: #79c0ff; border-color: #388bfd !important; }
 
-  /* Pending card (Catering) */
-  .pending-card {
-    background: rgba(56,139,253,0.08);
-    border: 1px dashed #388bfd;
-    border-radius: 8px; padding: 20px; text-align: center;
-    margin-bottom: 10px;
-  }
-  .pending-card .pending-title {
-    font-size: 0.8rem; font-weight: 700; color: #79c0ff;
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
-  }
-  .pending-card .pending-msg {
-    font-size: 0.85rem; color: #8b949e; line-height: 1.5;
-  }
-
   .section-divider {
     background: #21262d; border-radius: 6px;
     padding: 6px 14px; margin: 14px 0 10px 0;
@@ -129,6 +128,8 @@ st.markdown("""
 
 
 # ── Helper functions ──────────────────────────────────────────────────────────
+
+AVG_CHECK_TARGET = 18.00  # $18 target used to calculate goal transaction count
 
 def net_sales_color(pct):
     if pct is None: return "gray"
@@ -154,9 +155,11 @@ def sos_color(minutes):
     if minutes <= 5.0:  return "yellow"
     return "red"
 
-def fmt_cur(val):
-    if val is None: return "—"
-    return f"${val:,.2f}"
+def checks_delta_color(delta):
+    if delta is None: return "gray"
+    if delta >= 0:    return "green"
+    if delta >= -3:   return "yellow"
+    return "red"
 
 def fmt_pct(val):
     if val is None: return "—"
@@ -168,9 +171,13 @@ def fmt_time(minutes):
     s = int((minutes - m) * 60)
     return f"{m}:{s:02d}"
 
+def fmt_cur(val):
+    if val is None: return "—"
+    return f"${val:,.2f}"
 
-def render_location_card(name, data, show_catering_pending=False):
-    """Render a single location scorecard card with daily + MTD sales comparison."""
+
+def render_location_card(name, data):
+    """Render a store-level location card: % of goal (no dollars) + checks over/under."""
 
     net_sales       = data.get("net_sales")
     target          = data.get("target")
@@ -192,21 +199,44 @@ def render_location_card(name, data, show_catering_pending=False):
     ac_color    = avg_check_color(avg_check)
     ss_color    = sos_color(sos)
 
-    # ── Sales comparison block (Daily | MTD) ──
-    sales_html = f"""
+    # ── Checks over/under goal ──
+    # Goal transactions = daily sales target ÷ avg check target ($18)
+    # Delta = actual transactions − goal transactions
+    if target and target > 0 and trans_count is not None:
+        goal_trans = round(target / AVG_CHECK_TARGET)
+        delta      = trans_count - goal_trans
+        delta_color = checks_delta_color(delta)
+        delta_sign  = "+" if delta >= 0 else ""
+        delta_label = f"{delta_sign}{delta} checks vs. goal ({goal_trans} needed)"
+        delta_sub   = f"Actual: {trans_count} &nbsp;|&nbsp; Goal: {goal_trans}"
+    else:
+        delta       = None
+        delta_color = "gray"
+        delta_label = "—"
+        delta_sub   = "No data"
+
+    # ── Status boxes (% of goal — no dollar amounts) ──
+    status_html = f"""
     <div class="sales-compare">
       <div class="sales-half {daily_color}">
         <div class="sales-half-label">Today</div>
-        <div class="sales-half-actual">{fmt_cur(net_sales)}</div>
-        <div class="sales-half-target">Target: {fmt_cur(target)}</div>
-        <div class="sales-half-pct">{fmt_pct(daily_pct) if daily_pct is not None else '—'} of goal</div>
+        <div class="sales-half-pct">{fmt_pct(daily_pct) if daily_pct is not None else '—'}</div>
+        <div class="sales-half-sub">of daily goal</div>
       </div>
       <div class="sales-half {mtd_color}">
         <div class="sales-half-label">MTD</div>
-        <div class="sales-half-actual">{fmt_cur(mtd_net_sales)}</div>
-        <div class="sales-half-target">Target: {fmt_cur(mtd_target)}</div>
-        <div class="sales-half-pct">{fmt_pct(mtd_pct) if mtd_pct is not None else '—'} of goal</div>
+        <div class="sales-half-pct">{fmt_pct(mtd_pct) if mtd_pct is not None else '—'}</div>
+        <div class="sales-half-sub">of monthly goal</div>
       </div>
+    </div>
+    """
+
+    # ── Checks delta box ──
+    checks_html = f"""
+    <div class="checks-delta {delta_color}">
+      <div class="checks-delta-label">Checks vs. Goal</div>
+      <div class="checks-delta-value">{delta_label}</div>
+      <div class="checks-delta-sub">{delta_sub}</div>
     </div>
     """
 
@@ -229,34 +259,13 @@ def render_location_card(name, data, show_catering_pending=False):
         <div class="kpi-sub">&lt;4:00 target</div>
       </div>
     </div>
-    <div class="kpi-row">
-      <div class="kpi-box gray">
-        <div class="kpi-label">Transactions</div>
-        <div class="kpi-value">{trans_count if trans_count is not None else '—'}</div>
-        <div class="kpi-sub">today</div>
-      </div>
-    </div>
     """
-
-    # ── Catering pending notice ──
-    pending_html = ""
-    if show_catering_pending:
-        pending_html = """
-        <div class="pending-card">
-          <div class="pending-title">⏳ Catering Split Pending</div>
-          <div class="pending-msg">
-            Catering sales are currently included in Overland Retail totals.<br>
-            Order-type filtering requires QU Beyond API upgrade.<br>
-            Contact Qu Support to enable Check Data export.
-          </div>
-        </div>
-        """
 
     card_html = f"""
     <div class="location-card">
       <div class="location-title">{name}</div>
-      {sales_html}
-      {pending_html}
+      {status_html}
+      {checks_html}
       {kpi_html}
     </div>
     """
@@ -308,7 +317,7 @@ def get_demo_data():
             "food_truck":        loc("Overland — Food Truck",  "food_truck"),
             "state":             loc("State Street",           "state"),
             "eubank":            loc("Eubank",                 "eubank"),
-            "rapido":            loc("Rapido (Fairview)",      "rapido"),
+            "rapido":            loc("Rapido",                 "rapido"),
         }
     }
 
@@ -387,7 +396,7 @@ def main():
 
     with r2c3:
         loc = locations.get("rapido", {})
-        render_location_card(loc.get("name", "Rapido (Fairview)"), loc)
+        render_location_card(loc.get("name", "Rapido"), loc)
 
     # ── Company Totals ──
     st.markdown('<div class="section-divider">📊 Company Totals</div>', unsafe_allow_html=True)
@@ -404,6 +413,10 @@ def main():
     avg_check_all = (sum(l.get("avg_check", 0) or 0 for l in active) / len(active)) if active else None
     total_trans = sum(l.get("trans_count", 0) or 0 for l in locations.values())
 
+    # Company-level checks delta
+    total_goal_trans = round(total_target / AVG_CHECK_TARGET) if total_target > 0 else None
+    total_delta = (total_trans - total_goal_trans) if (total_goal_trans and total_trans > 0) else None
+
     tc1, tc2, tc3, tc4 = st.columns(4)
 
     with tc1:
@@ -411,15 +424,13 @@ def main():
         <div class="sales-compare">
           <div class="sales-half {net_sales_color(total_daily_pct)}">
             <div class="sales-half-label">Today — All Locations</div>
-            <div class="sales-half-actual">{fmt_cur(total_daily if total_daily > 0 else None)}</div>
-            <div class="sales-half-target">Target: {fmt_cur(total_target)}</div>
-            <div class="sales-half-pct">{fmt_pct(total_daily_pct) if total_daily_pct else '—'} of goal</div>
+            <div class="sales-half-pct">{fmt_pct(total_daily_pct) if total_daily_pct else '—'}</div>
+            <div class="sales-half-sub">of daily goal</div>
           </div>
           <div class="sales-half {net_sales_color(total_mtd_pct)}">
             <div class="sales-half-label">MTD — All Locations</div>
-            <div class="sales-half-actual">{fmt_cur(total_mtd if total_mtd > 0 else None)}</div>
-            <div class="sales-half-target">Target: {fmt_cur(total_mtd_tgt)}</div>
-            <div class="sales-half-pct">{fmt_pct(total_mtd_pct) if total_mtd_pct else '—'} of goal</div>
+            <div class="sales-half-pct">{fmt_pct(total_mtd_pct) if total_mtd_pct else '—'}</div>
+            <div class="sales-half-sub">of monthly goal</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -443,11 +454,13 @@ def main():
         """, unsafe_allow_html=True)
 
     with tc4:
+        delta_sign = "+" if (total_delta is not None and total_delta >= 0) else ""
+        delta_str  = f"{delta_sign}{total_delta}" if total_delta is not None else "—"
         st.markdown(f"""
-        <div class="kpi-box gray" style="padding:18px;border-radius:8px;text-align:center;">
-          <div class="kpi-label">Total Transactions</div>
-          <div class="kpi-value" style="font-size:1.8rem;">{total_trans if total_trans > 0 else '—'}</div>
-          <div class="kpi-sub">all locations today</div>
+        <div class="kpi-box {checks_delta_color(total_delta)}" style="padding:18px;border-radius:8px;text-align:center;">
+          <div class="kpi-label">Total Checks vs. Goal</div>
+          <div class="kpi-value" style="font-size:1.8rem;">{delta_str}</div>
+          <div class="kpi-sub">{total_trans} actual &nbsp;|&nbsp; {total_goal_trans or '—'} needed</div>
         </div>
         """, unsafe_allow_html=True)
 
