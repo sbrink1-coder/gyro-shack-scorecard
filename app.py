@@ -196,7 +196,7 @@ def render_location_card(name, data, show_catering_pending=False):
     sales_html = f"""
     <div class="sales-compare">
       <div class="sales-half {daily_color}">
-        <div class="sales-half-label">Today</div>
+        <div class="sales-half-label">Yesterday</div>
         <div class="sales-half-actual">{fmt_cur(net_sales)}</div>
         <div class="sales-half-target">Target: {fmt_cur(target)}</div>
         <div class="sales-half-pct">{fmt_pct(daily_pct) if daily_pct is not None else '—'} of goal</div>
@@ -410,7 +410,7 @@ def main():
         st.markdown(f"""
         <div class="sales-compare">
           <div class="sales-half {net_sales_color(total_daily_pct)}">
-            <div class="sales-half-label">Today — All Locations</div>
+            <div class="sales-half-label">Yesterday — All Locations</div>
             <div class="sales-half-actual">{fmt_cur(total_daily if total_daily > 0 else None)}</div>
             <div class="sales-half-target">Target: {fmt_cur(total_target)}</div>
             <div class="sales-half-pct">{fmt_pct(total_daily_pct) if total_daily_pct else '—'} of goal</div>
