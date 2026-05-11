@@ -137,11 +137,11 @@ def collect_and_save(report_date: date = None) -> dict:
     # ── Write actuals back to AFG Sales Goals Google Sheet ──
     try:
         mtd_data = {
-            "overland_retail_mtd":   locations.get("overland_retail", {}).get("mtd_sales") or 0,
-            "overland_catering_mtd": locations.get("overland_catering", {}).get("mtd_sales") or 0,
-            "food_truck_mtd":        locations.get("food_truck", {}).get("mtd_sales") or 0,
-            "state_mtd":             locations.get("state", {}).get("mtd_sales") or 0,
-            "rapido_mtd":            locations.get("rapido", {}).get("mtd_sales") or 0,
+            "overland_retail_mtd":   locations.get("overland_retail", {}).get("mtd_net_sales") or 0,
+            "overland_catering_mtd": locations.get("overland_catering", {}).get("mtd_net_sales") or 0,
+            "food_truck_mtd":        locations.get("food_truck", {}).get("mtd_net_sales") or 0,
+            "state_mtd":             locations.get("state", {}).get("mtd_net_sales") or 0,
+            "rapido_mtd":            locations.get("rapido", {}).get("mtd_net_sales") or 0,
             "rapido_catering_mtd":   0,
         }
         update_sales_goals(mtd_data)
