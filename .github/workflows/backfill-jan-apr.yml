@@ -1,0 +1,49 @@
+name: Backfill Jan-Apr 2026 Sales Goals
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests gspread google-auth
+
+      - name: Run backfill script
+        timeout-minutes: 20
+        env:
+          SQUARE_ACCESS_TOKEN:        ${{ secrets.SQUARE_ACCESS_TOKEN }}
+          QU_CLIENT_ID:               ${{ secrets.QU_CLIENT_ID }}
+          QU_CLIENT_SECRET:           ${{ secrets.QU_CLIENT_SECRET }}
+          QU_SERVICE_ID:              ${{ secrets.QU_SERVICE_ID }}
+          QU_COMPANY_ID:              ${{ secrets.QU_COMPANY_ID }}
+          QU_LOCATION_IDS:            ${{ secrets.QU_LOCATION_IDS }}
+          GOOGLE_SHEETS_CREDENTIALS:  ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python backfill_jan_apr.py 2>&1 | tee /tmp/backfill.log
+
+      - name: Upload backfill log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backfill-log
+          path: /tmp/backfill.log
+          retention-days: 7
