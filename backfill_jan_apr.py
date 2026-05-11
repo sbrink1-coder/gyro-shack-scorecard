@@ -46,16 +46,20 @@ def fetch_qu_sales_summary(headers, store_id, start_date, end_date):
     resp = requests.post(SALES_URL, headers=headers, json=body, timeout=30)
     resp.raise_for_status()
     data = resp.json()
-    net = (data.get("data") or data.get("result") or {})
-    if isinstance(net, dict):
-        for key in ["netSales", "net_sales", "totalSales", "total_sales", "grossSales"]:
-            if key in net:
-                return float(net[key])
-        summary = net.get("summary") or net.get("sales") or {}
+    # The Sales Summary API returns a flat object at the root level
+    # Try root first, then nested under 'data' or 'result'
+    candidates = [data]
+    nested = data.get("data") or data.get("result")
+    if isinstance(nested, dict):
+        candidates.append(nested)
+        summary = nested.get("summary") or nested.get("sales") or {}
         if isinstance(summary, dict):
+            candidates.append(summary)
+    for d in candidates:
+        if isinstance(d, dict):
             for key in ["netSales", "net_sales", "totalSales", "total_sales"]:
-                if key in summary:
-                    return float(summary[key])
+                if key in d:
+                    return float(d[key])
     logger.warning(f"Could not parse sales summary for store {store_id}: {json.dumps(data)[:400]}")
     return 0.0
 
@@ -70,7 +74,18 @@ def fetch_square_monthly_gross(start_date, end_date):
     resp = requests.get("https://connect.squareup.com/v2/locations", headers=headers, timeout=15)
     resp.raise_for_status()
     locs = resp.json().get("locations", [])
-    loc_id = locs[0]["id"] if locs else None
+    # Use the same location selection as square_fetcher: prefer 'food truck' in name,
+    # otherwise fall back to the first active location
+    loc_id = None
+    for loc in locs:
+        name = (loc.get("name") or "").lower()
+        if "truck" in name or "food" in name:
+            loc_id = loc["id"]
+            break
+    if not loc_id:
+        active = [l for l in locs if l.get("status") == "ACTIVE"]
+        loc_id = active[0]["id"] if active else (locs[0]["id"] if locs else None)
+    logger.info(f"Square location ID for Food Truck: {loc_id}")
     if not loc_id:
         return 0.0
 
