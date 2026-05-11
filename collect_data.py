@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fetchers.square_fetcher import get_food_truck_net_sales
 from fetchers.qu_fetcher import fetch_all_locations
 from fetchers.sheets_fetcher import fetch_monthly_targets, FALLBACK_TARGETS
+from fetchers.sheets_writer import update_sales_goals
 
 logging.basicConfig(
     level=logging.INFO,
@@ -132,6 +133,20 @@ def collect_and_save(report_date: date = None) -> dict:
         json.dump(scorecard, f, indent=2)
 
     logger.info(f"Scorecard data saved to {output_path}")
+
+    # ── Write actuals back to AFG Sales Goals Google Sheet ──
+    try:
+        mtd_data = {
+            "overland_retail_mtd":   locations.get("overland_retail", {}).get("mtd_sales") or 0,
+            "overland_catering_mtd": locations.get("overland_catering", {}).get("mtd_sales") or 0,
+            "food_truck_mtd":        locations.get("food_truck", {}).get("mtd_sales") or 0,
+            "state_mtd":             locations.get("state", {}).get("mtd_sales") or 0,
+            "rapido_mtd":            locations.get("rapido", {}).get("mtd_sales") or 0,
+            "rapido_catering_mtd":   0,
+        }
+        update_sales_goals(mtd_data)
+    except Exception as e:
+        logger.warning(f"sheets_writer failed (non-fatal): {e}")
 
     # Print summary
     logger.info("=" * 60)
